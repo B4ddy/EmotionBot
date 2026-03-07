@@ -22,9 +22,20 @@ class AIProcessor:
         prediction = torch.argmax(logits, dim=-1).item()
         return self.emotions[prediction]
 
-    def transcribe(self, frames):
+    def transcribe(self, frames, sample_rate=16000):
         audio_data = b"".join(frames)
         audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        # Resample if necessary - Whisper expects 16kHz
+        if sample_rate != 16000:
+            # Simple resampling using numpy interpolation
+            duration = len(audio_array) / sample_rate
+            target_length = int(duration * 16000)
+            audio_array = np.interp(
+                np.linspace(0, len(audio_array), target_length),
+                np.arange(len(audio_array)),
+                audio_array
+            )
         
         # beam_size=1 für schnellere Inferenz auf Raspberry Pi (Greedy Decoding)
         segments, _ = self.whisper.transcribe(audio_array, language="en", beam_size=1)
